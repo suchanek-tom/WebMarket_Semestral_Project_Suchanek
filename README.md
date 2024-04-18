@@ -1,5 +1,5 @@
 # Java_Example_BaseApplicationMVC
-> An mini-framework to support the development simple web applications, part 2: model, view and controller
+> An mini-framework to support the development of simple web applications, part 2: model, view and controller
 
 This example contains a mini-framework that combines the session, security, 
 data manipulation and view generation best practices addressed by earlier examples, together with
