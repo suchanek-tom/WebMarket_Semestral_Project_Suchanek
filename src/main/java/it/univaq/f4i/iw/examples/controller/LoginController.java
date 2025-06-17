@@ -1,15 +1,10 @@
-/*
- * LoginController.java
- *
- *
- */
 package it.univaq.f4i.iw.examples.controller;
 
-import it.univaq.f4i.iw.ex.newspaper.data.model.User;
+import it.univaq.f4i.iw.examples.data.models.Role; // Nový import pro role
+import it.univaq.f4i.iw.examples.data.models.User; // Upravený import pro vašeho uživatele
 import it.univaq.f4i.iw.examples.application.ApplicationDataLayer;
 import it.univaq.f4i.iw.examples.application.ApplicationBaseController;
 import it.univaq.f4i.iw.framework.data.DataException;
-import it.univaq.f4i.iw.framework.view.HTMLResult;
 import it.univaq.f4i.iw.framework.security.SecurityHelpers;
 import it.univaq.f4i.iw.framework.view.TemplateManagerException;
 import it.univaq.f4i.iw.framework.view.TemplateResult;
@@ -20,12 +15,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
-/**
- *
- * @author Ingegneria del Web
- * @version
- */
 public class LoginController extends ApplicationBaseController {
 
     private void action_default(HttpServletRequest request, HttpServletResponse response) throws IOException, TemplateManagerException {
@@ -43,15 +34,21 @@ public class LoginController extends ApplicationBaseController {
             User u = dl.getUserDAO().getUserByName(username);
             try {
                 if (u != null && SecurityHelpers.checkPasswordHashPBKDF2(password, u.getPassword())) {
-                    //se la validazione ha successo
-                    //if the identity validation succeeds
+                    // Vytvoření session
                     SecurityHelpers.createSession(request, username, u.getKey());
-                    //se è stato trasmesso un URL di origine, torniamo a quell'indirizzo
-                    //if an origin URL has been transmitted, return to it
+                    
+                    // Uložení celého uživatelského objektu do session
+                    HttpSession session = request.getSession();
+                    session.setAttribute("user", u);
+                    
+                    // Přesměrování podle role
+                    String redirectPage = determineRedirectPage(u);
+                    
+                    // Ošetření referreru
                     if (request.getParameter("referrer") != null) {
                         response.sendRedirect(request.getParameter("referrer"));
                     } else {
-                        response.sendRedirect("homepage");
+                        response.sendRedirect(redirectPage);
                     }
                     return;
                 }
@@ -59,12 +56,32 @@ public class LoginController extends ApplicationBaseController {
                 Logger.getLogger(LoginController.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        handleError("Login failed", request, response);
+        
+        // Přesměrování zpět na login s chybovou hláškou
+        response.sendRedirect("login?error=1");
+    }
+
+    // Metoda pro určení přesměrování podle role
+    private String determineRedirectPage(User user) {
+        switch (user.getRole()) {
+            case PURCHASER:
+                return "purchaser/dashboard";
+            case TECHNICIAN:
+                return "technician/dashboard";
+            case ADMIN:
+                return "admin/dashboard";
+            default:
+                return "homepage";
+        }
     }
 
     @Override
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-
+        // Přidání kontroly chybového parametru
+        if (request.getParameter("error") != null) {
+            request.setAttribute("error", "Neplatné přihlašovací údaje");
+        }
+        
         if (request.getParameter("login") != null) {
             action_login(request, response);
         } else {
@@ -72,7 +89,5 @@ public class LoginController extends ApplicationBaseController {
             request.setAttribute("https-redirect", https_redirect_url);
             action_default(request, response);
         }
-
     }
-
 }
